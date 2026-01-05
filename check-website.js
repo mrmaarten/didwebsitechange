@@ -9,25 +9,27 @@ import * as cheerio from 'cheerio';
 // Get directory of this script
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Email config - identical to test-email.js
+const EMAIL_CONFIG = {
+  from: process.env.EMAIL_FROM,
+  to: process.env.EMAIL_TO,
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false, // true for 465, false for other ports
+    requireTLS: true, // Use TLS
+    auth: {
+      user: process.env.EMAIL_FROM,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  },
+};
+
 // Configuration
 const CONFIG = {
   url: process.env.WATCH_URL || 'https://www.veem.nl/nl/ruimte-vrij',
   hashFile: join(__dirname, 'last-hash.txt'),
   contentFile: join(__dirname, 'last-content.txt'),
-
-  // Email settings (use environment variables)
-  email: {
-    from: process.env.EMAIL_FROM,
-    to: process.env.EMAIL_TO,
-    smtp: {
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      auth: {
-        user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    },
-  },
 };
 
 async function fetchContent(url) {
@@ -73,23 +75,49 @@ function saveContent(content) {
 }
 
 async function sendEmail(subject, body) {
-  if (!CONFIG.email.smtp.auth.pass) {
+  if (!EMAIL_CONFIG.smtp.auth.pass) {
     console.log('⚠️  EMAIL_PASSWORD not set, skipping email notification');
     console.log('Subject:', subject);
     console.log('Body:', body);
     return;
   }
 
-  const transporter = createTransport(CONFIG.email.smtp);
+  // Debug: Log config (identical format to test-email.js)
+  console.log('From:', EMAIL_CONFIG.from);
+  console.log('To:', EMAIL_CONFIG.to);
+  console.log('SMTP:', EMAIL_CONFIG.smtp.host + ':' + EMAIL_CONFIG.smtp.port);
+  console.log('Password:', EMAIL_CONFIG.smtp.auth.pass ? '****' + EMAIL_CONFIG.smtp.auth.pass.slice(-4) : '(not set)');
+  console.log('');
 
-  await transporter.sendMail({
-    from: CONFIG.email.from,
-    to: CONFIG.email.to,
-    subject,
-    text: body,
-  });
+  try {
+    console.log('Connecting to SMTP server...');
+    const transporter = createTransport(EMAIL_CONFIG.smtp);
 
-  console.log(`📧 Email sent to ${CONFIG.email.to}`);
+    console.log('Sending email...');
+    await transporter.sendMail({
+      from: EMAIL_CONFIG.from,
+      to: EMAIL_CONFIG.to,
+      subject,
+      text: body,
+    });
+
+    console.log(`✅ Email sent to ${EMAIL_CONFIG.to}`);
+  } catch (error) {
+    console.error('❌ Failed to send email:', error.message);
+    
+    if (error.code === 'EAUTH') {
+      console.error('\n💡 Authentication failed. For Gmail:');
+      console.error('   1. Make sure 2FA is enabled on your Google account');
+      console.error('   2. Go to: https://myaccount.google.com/apppasswords');
+      console.error('   3. Generate an App Password for "Mail"');
+      console.error('   4. Use that password in .env (not your regular password)');
+    }
+    
+    // Don't re-throw if this is an error email attempt (to avoid infinite loop)
+    if (!subject.includes('Website Monitor Error')) {
+      throw error;
+    }
+  }
 }
 
 async function main() {

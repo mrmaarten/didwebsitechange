@@ -90,7 +90,7 @@ Fetching https://www.example.com...
 crontab -e
 
 # Add this line to run daily at 9am:
-0 9 * * * /Users/maarten/git_maybe_removed/didwebsitechange/run.sh
+0 9 * * * didwebsitechange/run.sh
 ```
 
 ### Option B: Using macOS launchd
