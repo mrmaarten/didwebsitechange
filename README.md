@@ -36,6 +36,16 @@ nano .env
 3. Generate an app password for "Mail"
 4. Use that app password in `.env` as `EMAIL_PASSWORD`
 
+### 4. Test email configuration
+
+Before running the monitor, test that your email setup works:
+
+```bash
+npm run test-email
+```
+
+You should receive a test email at the address specified in `EMAIL_TO`. If you see an error, double-check your `.env` configuration.
+
 ## Usage
 
 ### Run manually
@@ -122,6 +132,7 @@ launchctl load ~/Library/LaunchAgents/nl.websitecheck.plist
 ## Files
 
 - `check-website.js` - Main script
+- `test-email.js` - Test email configuration
 - `run.sh` - Wrapper script for cron (loads .env)
 - `.env` - Your email configuration (not in git)
 - `env.example` - Example configuration
